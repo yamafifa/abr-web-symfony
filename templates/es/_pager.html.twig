@@ -1,0 +1,20 @@
+{# ページ送り（search_after）。ページ番号は無く、最初・前・次・最後へ進む。引数：query（ページの位置を外した検索条件）・prev_key・next_key #}
+{% set base = 'grid h-9 min-w-9 place-items-center rounded-lg px-3 text-sm transition' %}
+{% set on = base ~ ' text-slate-300 hover:bg-white/5' %}
+{% set off = base ~ ' text-slate-600' %}
+<nav aria-label="ページ送り" class="flex flex-wrap items-center justify-center gap-1">
+    {% if prev_key is not null %}
+        <a href="{{ path('rsdts_es', query.toParams) }}" class="{{ on }}">« 最初へ</a>
+        <a href="{{ path('rsdts_es', query.withBefore(prev_key).toParams) }}" class="{{ on }}">‹ 前へ</a>
+    {% else %}
+        <span class="{{ off }}">« 最初へ</span>
+        <span class="{{ off }}">‹ 前へ</span>
+    {% endif %}
+    {% if next_key is not null %}
+        <a href="{{ path('rsdts_es', query.withAfter(next_key).toParams) }}" class="{{ on }}">次へ ›</a>
+        <a href="{{ path('rsdts_es', query.withLast.toParams) }}" class="{{ on }}">最後へ »</a>
+    {% else %}
+        <span class="{{ off }}">次へ ›</span>
+        <span class="{{ off }}">最後へ »</span>
+    {% endif %}
+</nav>

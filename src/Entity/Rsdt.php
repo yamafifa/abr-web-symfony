@@ -248,6 +248,22 @@ class Rsdt
         $this->remarks = $v('remarks');
     }
 
+    /**
+     * 列名 → 値（22 列）から作る。Elasticsearch の検索結果を、DB 検索と同じ部品で画面に出すため（DB には保存しない）
+     *
+     * @param array<string, string|null> $values
+     */
+    public static function fromColumns(array $values): self
+    {
+        $rsdt = new self();
+        foreach (self::KEY_COLUMNS as $column => $prop) {
+            $rsdt->{$prop} = (string) ($values[$column] ?? '');
+        }
+        $rsdt->update($values);
+
+        return $rsdt;
+    }
+
     /** YYYY-MM-DD を日付にする。「2026-02-30」のような無い日付も受け付けない */
     private static function parseDate(?string $s): ?\DateTimeImmutable
     {

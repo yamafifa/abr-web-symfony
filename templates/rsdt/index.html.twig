@@ -5,9 +5,12 @@
     {% set from = r.total == 0 ? 0 : (r.page - 1) * query.perPage + 1 %}
     {% set to = (r.page - 1) * query.perPage + r.rows|length %}
     <div class="space-y-6">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight text-white">住居の検索</h1>
-            <p class="mt-1 text-sm text-slate-400">住居表示-住居マスター（東京都）を検索して、編集・削除します。</p>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white">住居の検索 <span class="ml-1 rounded-full bg-cyan-400/15 px-2.5 py-0.5 align-middle text-xs font-semibold text-cyan-300 ring-1 ring-cyan-400/40">DB</span></h1>
+                <p class="mt-1 text-sm text-slate-400">住居表示-住居マスター（東京都）を検索して、編集・削除します。</p>
+            </div>
+            <a href="{{ path('rsdts_es', query.withPage(1).toParams) }}" class="text-sm text-amber-300 hover:underline">同じ条件で Elasticsearch 検索 →</a>
         </div>
 
         <section class="rounded-2xl border border-white/10 bg-slate-900/50 p-5 shadow-xl shadow-black/20 backdrop-blur">
@@ -25,41 +28,7 @@
             {% if r.rows is empty %}
                 <p class="px-5 py-16 text-center text-slate-500">該当する住居がありません</p>
             {% else %}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="text-xs uppercase tracking-wider text-slate-500">
-                            <tr class="border-b border-white/5">
-                                <th class="px-5 py-3 font-medium">住所</th>
-                                <th class="px-3 py-3 font-medium">キー</th>
-                                <th class="px-3 py-3 font-medium">efct_date</th>
-                                <th class="px-3 py-3 font-medium">ablt_date</th>
-                                <th class="px-5 py-3 text-right font-medium">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5">
-                            {% for rsdt in r.rows %}
-                                <tr class="transition hover:bg-cyan-400/[0.04]">
-                                    <td class="px-5 py-2.5 font-medium text-slate-100">
-                                        {{ rsdt.address }}
-                                        {% if rsdt.abltDate %}
-                                            <span class="ml-2 rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-400">廃止</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-500">{{ rsdt.routeId }}</td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-400">{{ rsdt.efctDate ? rsdt.efctDate|date('Y-m-d') }}</td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-400">{{ rsdt.abltDate ? rsdt.abltDate|date('Y-m-d') }}</td>
-                                    <td class="whitespace-nowrap px-5 py-2.5">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <a href="{{ path('rsdts_edit', {id: rsdt.routeId, back: back}) }}"
-                                               class="rounded-md px-2.5 py-1 text-xs text-cyan-300 ring-1 ring-cyan-400/30 hover:bg-cyan-400/10">編集</a>
-                                            {{ include('rsdt/_delete_button.html.twig', {rsdt: rsdt, back: back, variant: 'icon'}) }}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                {{ include('rsdt/_table.html.twig', {rows: r.rows, back: back}) }}
             {% endif %}
 
             {% if r.totalPages > 1 %}

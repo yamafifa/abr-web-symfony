@@ -18,6 +18,12 @@
                 <span class="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-slate-200 to-slate-400 text-sm font-bold text-slate-950 shadow-lg shadow-slate-400/20">S</span>
                 <span class="font-semibold tracking-wide text-slate-100 group-hover:text-white">ABR 住居マスター</span>
             </a>
+            {# DB 検索と Elasticsearch 検索の切り替え #}
+            <nav class="ml-6 flex gap-1 text-sm">
+                {% for item in [{label: 'DB 検索', route: 'rsdts_index'}, {label: 'Elasticsearch 検索', route: 'rsdts_es'}] %}
+                    <a href="{{ path(item.route) }}" class="rounded-lg px-3 py-1.5 {{ app.current_route == item.route ? 'bg-white/10 font-medium text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">{{ item.label }}</a>
+                {% endfor %}
+            </nav>
             <span class="ml-auto rounded-full border border-white/10 px-2.5 py-0.5 font-mono text-xs text-slate-400">mt_rsdtdsp_rsdt</span>
         </div>
     </header>

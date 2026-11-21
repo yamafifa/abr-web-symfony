@@ -16,6 +16,7 @@ TS 版・Rails 版・Laravel 版と同じです。
 - **一覧**：主キー順。1 ページ 15 件（30・50・100 件も選べます）。ページャー付き
 - **編集**：主キー以外の 17 列。「更新」を押すと、変わった項目をモーダルで見せてから保存します
 - **削除**：一覧と編集画面から。モーダルで確認してから削除します
+- **Elasticsearch 検索**（Rails 版・Laravel 版・Symfony 版だけ）：`/es`。条件の意味と画面は DB 検索と同じで、abr-batch の `npm run es:index` で作った Elasticsearch のインデックスから探します。下の「Elasticsearch 検索」を参照
 
 ## 動かし方
 
@@ -33,18 +34,39 @@ php -S 127.0.0.1:3000 -t public   # http://127.0.0.1:3000
 - **`doctrine:schema:update` などの、DB を作り直すコマンドは使えません。** DB を abr-batch と共用しているので、[src/Console/DbCommandGuard.php](src/Console/DbCommandGuard.php) で止めています。例えば `doctrine:schema:update` は、このアプリの知らないテーブル（Rails・Prisma の管理表）を DROP しようとします（`--dump-sql` で SQL だけ出して確かめた）
 - 開発中は、画面の下に Symfony のツールバー（web-profiler）が出ます。実行した SQL や時間を見られます
 
+## Elasticsearch 検索
+
+Rails 版・Laravel 版と同じものです。DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/es`）を別に作りました。上のメニューで切り替えられ、それぞれの画面に「同じ条件で〜検索」のリンクがあります。
+
+- **速さ**（`php -S` で画面全体を返すまで、3 回測った値）
+
+| 条件 | DB 検索 | Elasticsearch 検索 |
+|---|---|---|
+| 市区町村「町田」＋町字「木曽」 | 1.74〜1.80 秒 | 0.035〜0.036 秒 |
+| 町字「西」 | 0.72〜0.75 秒 | 0.041〜0.043 秒 |
+| 条件なし | 0.23〜0.24 秒 | 0.033〜0.035 秒 |
+
+- **中身は `npm run es:index` を実行した時点の DB のコピー**です。画面に作成日時を出しています。この画面から編集・削除すると DB は変わりますが、Elasticsearch は次に `es:index` を実行するまで古いままです。食い違ったときは、DB 検索の画面と見比べてください
+- **ページ送りは「最初へ・前へ・次へ・最後へ」**で、ページ番号はありません。Elasticsearch は、先頭から 10,000 件より先へページ番号で進めないため、主キーの続きから取る方法（search_after）にしました
+- **文字の扱いは MySQL に合わせています**：MySQL（utf8mb4_unicode_ci）は全角と半角、ひらがなとカタカナ、濁点の有無などを同じ文字として扱います。Elasticsearch でも同じ結果になるよう、入れる側（abr-batch の `src/lib/fold.ts`）と探す側（[src/Support/RsdtFold.php](src/Support/RsdtFold.php)）で同じように文字をそろえています。DB にある値すべて（1,159 種類）で、abr-batch と結果が同じになることを確かめました。直すときは abr-batch・Rails 版・Laravel 版・Symfony 版のすべてを直します
+- Elasticsearch には Symfony の HttpClient でつなぎます（[src/Elasticsearch/EsClient.php](src/Elasticsearch/EsClient.php)）。HttpClient は AssetMapper などが使うのでもともと入っていましたが、直接使うので `composer.json` にも書きました（版は入っていた 8.1.11 のまま）。接続先は `.env` の `ES_URL`。接続できないときは、画面にエラーの文を出します
+- 検索結果は `Rsdt::fromColumns()` でエンティティにして、DB 検索と同じ表の部品で出します（DB には保存しません）
+
 ## 構成
 
 | 場所 | 内容 |
 |---|---|
 | `src/Entity/Rsdt.php` | Doctrine のエンティティ。複合主キー（`#[ORM\Id]` を 5 つ）、17 列の決まり、住所の表示、値の書き換え（`update()`） |
 | `src/Repository/RsdtRepository.php` | SQL を組み立てる所：検索・件数・1 件取る（ロック付きも）・削除 |
-| `src/Search/` | 検索条件（`RsdtSearchCriteria`）と、一覧の URL ⇔ 検索条件・件数・ページ（`RsdtListQuery`） |
+| `src/Search/` | 検索条件（`RsdtSearchCriteria`）と、一覧の URL ⇔ 検索条件・件数・ページ（`RsdtListQuery`）、Elasticsearch 検索の URL ⇔ 検索条件・件数・after・before・last（`RsdtEsListQuery`） |
 | `src/Form/RsdtType.php` | 編集フォームと入力チェック（Symfony Form ＋ Validator） |
-| `src/UseCase/` | ユースケース：`SearchRsdt`（ページ番号の補正もここ）・`GetRsdt`・`UpdateRsdt`・`DeleteRsdt` |
+| `src/UseCase/` | ユースケース：`SearchRsdt`（ページ番号の補正もここ）・`SearchRsdtEs`（Elasticsearch で検索）・`GetRsdt`・`UpdateRsdt`・`DeleteRsdt` |
 | `src/Controller/RsdtController.php` | パラメーターを読む → ユースケースを呼ぶ → 表示・redirect。ルートも属性（`#[Route]`）でここに書く |
+| `src/Controller/EsRsdtController.php` | Elasticsearch 検索の一覧。編集・削除は `RsdtController` の画面を使う |
+| `src/Elasticsearch/` | Elasticsearch の REST API を呼ぶ（`EsClient`）と、そのエラー |
+| `src/Support/RsdtFold.php` | Elasticsearch で探す前に、文字をそろえる（MySQL と同じ結果にするため） |
 | `src/Support/Pager.php`・`src/Twig/AppExtension.php` | ページャーに出すページ番号と、それをテンプレートで使う関数 |
-| `templates/` | Twig：レイアウト・お知らせ・確認モーダル・一覧・編集・検索フォーム・削除ボタン・ページャー・404 |
+| `templates/` | Twig：レイアウト・お知らせ・確認モーダル・一覧・一覧の表・編集・検索フォーム・削除ボタン・ページャー・404。`templates/es/` は Elasticsearch 検索の一覧とページ送り |
 | `assets/controllers/` | Stimulus：確認モーダル（`confirm`）・お知らせを消す（`flash`）・件数を変えたら送る（`auto-submit`）。Rails 版と同じもの |
 | `src/Console/DbCommandGuard.php` | DB を作り直すコマンドを止める |
 
@@ -60,7 +82,7 @@ Laravel 版との違い：
 ## テスト
 
 ```bash
-php bin/phpunit                        # 78 件、約 20 秒
+php bin/phpunit                        # 97 件、約 30 秒
 vendor/bin/phpstan analyse             # 型の検査（レベル 8）
 vendor/bin/php-cs-fixer fix --dry-run  # 書き方のチェック（直すときは --dry-run を外す）
 ```
@@ -68,6 +90,7 @@ vendor/bin/php-cs-fixer fix --dry-run  # 書き方のチェック（直すとき
 - `tests/Unit` は Symfony を起動しないテスト、`tests/Integration` はユースケースを本物の DB で試すテスト、`tests/Controller` は画面を通したテスト（WebTestCase）です
 - DB を使うテストは、1 件ごとに dama/doctrine-test-bundle がトランザクションで取り消すので、DB の中身は変わりません
 - テストも開発も同じ DB（`abr`）を使います
+- Elasticsearch 検索のテストは、本物の Elasticsearch を使います。先に abr-batch で `npm run es:index` を実行しておきます
 
 ## 作ってみて分かったこと
 

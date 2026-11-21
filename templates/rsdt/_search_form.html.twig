@@ -1,4 +1,4 @@
-{# 検索条件のフォーム。GET で送るので、条件は URL に残る（ページ番号は 1 に戻る） #}
+{# 検索条件のフォーム。GET で送るので、条件は URL に残る（ページ番号は 1 に戻る）。action を渡すと、その画面に送る（Elasticsearch 検索） #}
 {% set input_class = 'w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20' %}
 {% set c = query.criteria %}
 {% set fields = [
@@ -8,7 +8,7 @@
     {label: 'blk_num', name: 'blk', value: c.blkNum, placeholder: '例：6', numeric: true},
     {label: 'rsdt_num', name: 'rsdt', value: c.rsdtNum, placeholder: '例：1', numeric: true},
 ] %}
-<form method="GET" action="{{ path('rsdts_index') }}"
+<form method="GET" action="{{ action ?? path('rsdts_index') }}"
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_9rem_6rem_6rem_auto_auto] lg:items-end">
     {% for f in fields %}
         <label class="block">
