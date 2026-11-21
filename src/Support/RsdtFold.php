@@ -13,7 +13,7 @@ namespace App\Support;
  * - 小さい仮名（「ヶ」と「ケ」）→ 大きい仮名にする
  * CJK 互換漢字（例：U+FA10 の「塚」）はそのまま残す（MySQL は U+585A の「塚」と別の文字として扱うため）
  *
- * abr-batch の src/lib/fold.ts、Rails 版・Laravel 版の RsdtFold と同じ処理。直すときはすべてを直す
+ * abr-batch の src/lib/fold.ts、Rails 版・Laravel 版・Java 版の RsdtFold と同じ処理。直すときはすべてを直す
  */
 final class RsdtFold
 {
