@@ -16,7 +16,7 @@ TS 版・Rails 版・Laravel 版と同じです。
 - **一覧**：主キー順。1 ページ 15 件（30・50・100 件も選べます）。ページャー付き
 - **編集**：主キー以外の 17 列。「更新」を押すと、変わった項目をモーダルで見せてから保存します
 - **削除**：一覧と編集画面から。モーダルで確認してから削除します
-- **Elasticsearch 検索**（Rails 版・Laravel 版・Symfony 版だけ）：`/es`。条件の意味と画面は DB 検索と同じで、abr-batch の `npm run es:index` で作った Elasticsearch のインデックスから探します。下の「Elasticsearch 検索」を参照
+- **Elasticsearch 検索**（5 つの版すべてにある）：`/es`。条件の意味と画面は DB 検索と同じで、abr-batch の `npm run es:index` で作った Elasticsearch のインデックスから探します。下の「Elasticsearch 検索」を参照
 
 ## 動かし方
 
