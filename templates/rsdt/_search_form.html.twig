@@ -1,0 +1,30 @@
+{# 検索条件のフォーム。GET で送るので、条件は URL に残る（ページ番号は 1 に戻る） #}
+{% set input_class = 'w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20' %}
+{% set c = query.criteria %}
+{% set fields = [
+    {label: '市区町村', name: 'city', value: c.city, placeholder: '例：世田谷', numeric: false},
+    {label: '町字', name: 'town', value: c.town, placeholder: '例：上北沢', numeric: false},
+    {label: '丁目', name: 'chome', value: c.chome, placeholder: '例：一丁目', numeric: false},
+    {label: 'blk_num', name: 'blk', value: c.blkNum, placeholder: '例：6', numeric: true},
+    {label: 'rsdt_num', name: 'rsdt', value: c.rsdtNum, placeholder: '例：1', numeric: true},
+] %}
+<form method="GET" action="{{ path('rsdts_index') }}"
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_9rem_6rem_6rem_auto_auto] lg:items-end">
+    {% for f in fields %}
+        <label class="block">
+            <span class="mb-1.5 block text-xs font-medium tracking-wide text-slate-400{{ f.numeric ? ' font-mono' }}">{{ f.label }}</span>
+            <input type="text" name="{{ f.name }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}" class="{{ input_class }}"
+                   {% if f.numeric %}inputmode="numeric" title="完全一致"{% endif %}>
+        </label>
+    {% endfor %}
+    <label class="block">
+        <span class="mb-1.5 block text-xs font-medium tracking-wide text-slate-400">表示件数</span>
+        {# 件数を変えたら、すぐに検索し直す（assets/controllers/auto_submit_controller.js） #}
+        <select name="per" class="{{ input_class }} pr-8" data-controller="auto-submit" data-action="change->auto-submit#submit">
+            {% for n in per_page_options() %}
+                <option value="{{ n }}"{% if n == query.perPage %} selected{% endif %}>{{ n }} 件</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button type="submit" class="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-400 to-sky-500 px-6 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110">検索</button>
+</form>

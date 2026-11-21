@@ -1,0 +1,3 @@
+symfonycasts_tailwind:
+    # Tailwind の単体プログラムの版（var/tailwind/ に落とす）。Laravel 版の Tailwind と同じ版
+    binary_version: 'v4.3.4'

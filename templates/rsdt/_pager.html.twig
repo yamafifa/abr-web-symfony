@@ -1,0 +1,24 @@
+{# ページャー。引数：query（RsdtListQuery）・page・total_pages #}
+{% set base = 'grid h-9 min-w-9 place-items-center rounded-lg px-3 text-sm transition' %}
+{% macro href(query, p) %}{{ path('rsdts_index', query.withPage(p).toParams) }}{% endmacro %}
+<nav aria-label="ページ送り" class="flex flex-wrap items-center justify-center gap-1">
+    {% if page > 1 %}
+        <a href="{{ _self.href(query, page - 1) }}" class="{{ base }} text-slate-300 hover:bg-white/5">‹ 前へ</a>
+    {% else %}
+        <span class="{{ base }} text-slate-600">‹ 前へ</span>
+    {% endif %}
+    {% for p in pager_items(page, total_pages) %}
+        {% if p is null %}
+            <span class="px-1 text-slate-600">…</span>
+        {% elseif p == page %}
+            <span aria-current="page" class="{{ base }} bg-cyan-400/15 font-semibold text-cyan-300 ring-1 ring-cyan-400/40">{{ p|number_format }}</span>
+        {% else %}
+            <a href="{{ _self.href(query, p) }}" class="{{ base }} text-slate-400 hover:bg-white/5 hover:text-white">{{ p|number_format }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+        <a href="{{ _self.href(query, page + 1) }}" class="{{ base }} text-slate-300 hover:bg-white/5">次へ ›</a>
+    {% else %}
+        <span class="{{ base }} text-slate-600">次へ ›</span>
+    {% endif %}
+</nav>

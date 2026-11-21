@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ rsdt.address }} の編集{% endblock %}
+
+{% block body %}
+    <div class="space-y-6">
+        <div>
+            <a href="{{ back }}" class="text-sm text-slate-400 hover:text-cyan-300">‹ 一覧に戻る</a>
+            <h1 class="mt-2 text-2xl font-bold tracking-tight text-white">{{ rsdt.address }}</h1>
+            <dl class="mt-3 flex flex-wrap gap-2">
+                {% for col, value in rsdt.keyValues %}
+                    <div class="rounded-lg border border-white/10 bg-slate-900/50 px-3 py-1.5">
+                        <dt class="font-mono text-[10px] text-slate-500">{{ col }}</dt>
+                        <dd class="font-mono text-sm text-slate-200">
+                            {%- if value != '' %}{{ value }}{% else %}<span class="text-slate-600">（空）</span>{% endif -%}
+                        </dd>
+                    </div>
+                {% endfor %}
+            </dl>
+            <p class="mt-2 text-xs text-slate-500">主キーの 5 列は変更できません。</p>
+        </div>
+
+        {# 「更新」を押すと、すぐには送らず、変わった項目をモーダルで見せる（confirm_controller.js の diff） #}
+        <div data-controller="confirm" data-confirm-diff-value="true" data-action="submit->confirm#open">
+            {# form_start が、PATCH を表す隠し項目（_method）も出す #}
+            {{ form_start(form, {attr: {class: 'rounded-2xl border border-white/10 bg-slate-900/50 shadow-xl shadow-black/20 backdrop-blur', novalidate: 'novalidate'}}) }}
+                <div class="grid gap-x-6 gap-y-5 p-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {% set originals = rsdt.formValues %}
+                    {% for rule in constant('App\\Entity\\Rsdt::ATTRIBUTE_RULES') %}
+                        {% set name = rule.name %}
+                        {% set field = form[name] %}
+                        {% set invalid = field.vars.errors|length > 0 %}
+                        <label class="block{{ name == 'remarks' ? ' sm:col-span-2 lg:col-span-3' }}">
+                            <span class="mb-1.5 flex items-baseline justify-between font-mono text-xs text-slate-400">
+                                <span>{{ name }}{% if rule.required ?? false %}<span class="ml-1 text-rose-400">*</span>{% endif %}</span>
+                                {% if rule.max is defined %}<span class="text-[10px] text-slate-600">最大 {{ rule.max }} 文字</span>{% endif %}
+                            </span>
+                            {# 入力チェックに通らず出し直したときは、入力したままの値が field の値に入っている #}
+                            {{ form_widget(field, {
+                                type: (rule.type ?? null) == 'date' ? 'date' : 'text',
+                                attr: field.vars.attr|merge({
+                                    'data-confirm-target': 'field',
+                                    'data-column': name,
+                                    'data-original': originals[name],
+                                    'aria-invalid': invalid ? 'true' : 'false',
+                                    class: 'w-full rounded-lg border bg-slate-950/60 px-3 py-2 text-sm text-white outline-none transition focus:ring-2 ' ~ (invalid ? 'border-rose-400/60 focus:ring-rose-400/20' : 'border-white/10 focus:border-cyan-400/60 focus:ring-cyan-400/20'),
+                                }),
+                            }) }}
+                            {% for error in field.vars.errors %}<span class="mt-1 block text-xs text-rose-400">{{ error.message }}</span>{% endfor %}
+                        </label>
+                    {% endfor %}
+                </div>
+                <div class="flex items-center gap-3 border-t border-white/10 bg-slate-950/30 px-6 py-4">
+                    <a href="{{ back }}" class="ml-auto rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-white/5">キャンセル</a>
+                    <button type="submit" class="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-400 to-sky-500 px-6 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110">更新</button>
+                </div>
+            {# form_end が、まだ出していない項目（CSRF トークン）を出す #}
+            {{ form_end(form) }}
+            {% embed '_confirm_dialog.html.twig' with {title: 'この内容で更新しますか？', confirm_label: '更新する'} %}
+                {% block content %}<div data-confirm-target="diff"></div>{% endblock %}
+            {% endembed %}
+        </div>
+
+        {# 削除ボタンは自分のフォームを持つので、編集フォームの外に置く（フォームは入れ子にできない） #}
+        <div class="flex justify-start">
+            {{ include('rsdt/_delete_button.html.twig', {rsdt: rsdt, back: back}) }}
+        </div>
+    </div>
+{% endblock %}

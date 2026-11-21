@@ -1,0 +1,16 @@
+{# 更新・削除のあとのお知らせ。3 秒で消える（assets/controllers/flash_controller.js） #}
+{% set notice = app.flashes('notice')|last %}
+{% set alert = app.flashes('alert')|last %}
+{# 入力チェックに通らず、編集画面をもう一度出したとき #}
+{% if not alert and form is defined and form.vars.submitted and not form.vars.valid %}
+    {% set alert = '入力内容を確認してください' %}
+{% endif %}
+{% for type, message in {notice: notice, alert: alert} %}
+    {% if message %}
+        <div data-controller="flash"
+             class="fixed right-4 top-20 z-50 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-lg shadow-black/30 backdrop-blur transition-opacity duration-300 {{ type == 'notice' ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-200' : 'border-rose-400/30 bg-rose-500/15 text-rose-200' }}">
+            <span class="size-2 rounded-full {{ type == 'notice' ? 'bg-emerald-400' : 'bg-rose-400' }}"></span>
+            {{ message }}
+        </div>
+    {% endif %}
+{% endfor %}

@@ -1,0 +1,16 @@
+{# 削除ボタン。押すとモーダルで確認してから送る。引数：rsdt・back・variant（'icon' なら小さいボタン） #}
+<div data-controller="confirm" data-action="submit->confirm#open" class="inline-block">
+    <form method="POST" action="{{ path('rsdts_delete', {id: rsdt.routeId, back: back}) }}">
+        <input type="hidden" name="_method" value="DELETE">
+        {# CSRF トークン。送る直前に assets/controllers/csrf_protection_controller.js が、乱数のトークンに差し替えてクッキーにも入れる #}
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <button type="submit" class="cursor-pointer text-rose-300 hover:bg-rose-500/10 {{ variant|default('button') == 'icon' ? 'rounded-md px-2.5 py-1 text-xs ring-1 ring-rose-400/30' : 'rounded-lg px-4 py-2 text-sm ring-1 ring-rose-400/40' }}">削除</button>
+    </form>
+    {% embed '_confirm_dialog.html.twig' with {title: 'この行を削除しますか？', confirm_label: '削除する', danger: true} %}
+        {% block content %}
+            <p class="rounded-lg bg-slate-950/60 px-3 py-2 font-medium text-white">{{ rsdt.address }}</p>
+            <p class="mt-2 font-mono text-xs text-slate-500">{{ rsdt.routeId }}</p>
+            <p class="mt-3">削除すると元に戻せません。</p>
+        {% endblock %}
+    {% endembed %}
+</div>
