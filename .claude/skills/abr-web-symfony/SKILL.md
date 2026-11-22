@@ -11,6 +11,7 @@ description: abr-web-symfony（住居表示-住居マスターを検索・一覧
 - DB は **abr-batch の MySQL を共用**（ポート 3307、テーブル `mt_rsdtdsp_rsdt`、1,752,573 件）。開発とテストは同じ DB（`abr`）
 - 勉強用に、同じものを TS（abr-web-ts）・Rails（abr-web-rails）・Laravel（abr-web-laravel）でも作った。機能・画面・デザイン・ユースケースの名前（`SearchRsdt`・`GetRsdt`・`UpdateRsdt`・`DeleteRsdt`）をそろえる
 - サーバーは `php -S 127.0.0.1:3000 -t public`（ほかの版と同じ 3000 番）。Node.js は使わない
+- 時刻は日本時間（`src/Kernel.php` の `boot()` で `date_default_timezone_set('Asia/Tokyo')`）。php.ini の `date.timezone` は UTC のまま（PC 全体の設定なので変えない）
 
 ## してはいけないこと（DB を共用しているため）
 
