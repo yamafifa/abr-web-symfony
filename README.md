@@ -1,27 +1,38 @@
 # abr-web-symfony
 
-ABR（アドレス・ベース・レジストリ）の住居表示-住居マスター（`mt_rsdtdsp_rsdt`、東京都 1,752,573 件）を検索して、一覧表示・編集・削除する Web アプリです。
-勉強用に、同じものを TypeScript・Ruby on Rails・PHP Laravel・PHP Symfony で作るうちの Symfony 版です。
+ABR（アドレス・ベース・レジストリ）の住居表示-住居マスター（`mt_rsdtdsp_rsdt`、東京都 1,752,573 件）を検索して、一覧表示・編集・削除する Web アプリの PHP Symfony 版です。
+[abr-batch](https://github.com/yamafifa/abr-batch) で確かめた「大量のデータを部分一致で探すなら、元の DB ではなく、検索用のデータを作る」の効果を、DB 検索と Elasticsearch 検索の画面で比べられるようにしています。
 
 - PHP 8.5 ＋ Symfony 8.1.11 ＋ Doctrine ORM 3.7 ＋ Twig ＋ Symfony Form ＋ Tailwind CSS 4 ＋ Stimulus（AssetMapper）＋ PHPUnit 13
-- 構成は「Controller → ユースケース → Repository → Entity」（`src/UseCase/`）。ユースケースの名前は、ほかの版とそろえています
+- 構成は「Controller → ユースケース → Repository → Entity」（`src/UseCase/`）
 - DB は [abr-batch](https://github.com/yamafifa/abr-batch) の MySQL を共用します（テーブルも abr-batch で作ったもの）
 - JS と CSS は AssetMapper（Symfony の仕組み）で配るので、Node.js でのビルドは要りません
+- ほかの版：[TypeScript（Next.js）](https://github.com/yamafifa/abr-web-ts)・[Ruby on Rails](https://github.com/yamafifa/abr-web-rails)・[Laravel](https://github.com/yamafifa/abr-web-laravel)・[Spring Boot](https://github.com/yamafifa/abr-web-spring)
+
+## 検索の速さ：DB 検索と Elasticsearch 検索
+
+`php -S` で画面全体を返すまでの時間（3 回測った値）：
+
+| 条件 | DB 検索（`/`） | Elasticsearch 検索（`/es`） |
+|---|---|---|
+| 市区町村「町田」＋町字「木曽」 | 1.74〜1.80 秒 | 0.035〜0.036 秒 |
+| 町字「西」 | 0.72〜0.75 秒 | 0.041〜0.043 秒 |
+| 条件なし | 0.23〜0.24 秒 | 0.033〜0.035 秒 |
+
+- DB 検索は `city LIKE '%町田%'` のような部分一致です。前に `%` が付く LIKE は MySQL のインデックスでは速くならないので、毎回 175 万行を全部読みます
+- Elasticsearch 検索は、abr-batch の `npm run es:index` で作った検索用のインデックスから探します。条件の意味と画面は DB 検索と同じです
+- 詳しくは下の「[Elasticsearch 検索](#elasticsearch-検索)」を参照
 
 ## できること
 
-TS 版・Rails 版・Laravel 版と同じです。
-
-- **検索**：市区町村（`city`・`ward`）、町字（`oaza_cho`・`koaza`）、丁目（`chome`）の部分一致と、`blk_num`・`rsdt_num` の完全一致。条件は URL に残ります
-- **一覧**：主キー順。1 ページ 15 件（30・50・100 件も選べます）。ページャー付き
-- **編集**：主キー以外の 17 列。「更新」を押すと、変わった項目をモーダルで見せてから保存します
-- **削除**：一覧と編集画面から。モーダルで確認してから削除します
-- **Elasticsearch 検索**（5 つの版すべてにある）：`/es`。条件の意味と画面は DB 検索と同じで、abr-batch の `npm run es:index` で作った Elasticsearch のインデックスから探します。下の「Elasticsearch 検索」を参照
+- **検索**：市区町村・町字・丁目などで探して、一覧を出します。DB 検索（`/`）と Elasticsearch 検索（`/es`）の 2 つがあり、条件と画面は同じです
+- **編集・削除**：abr-batch の差分更新バッチ（v4）のテストデータを作りやすくするために付けました
 
 ## 動かし方
 
 1. abr-batch で DB を起動して、データを入れておく（abr-batch の README「動かし方」を参照）
-2. このリポジトリで：
+2. Elasticsearch 検索を使うときは、abr-batch で `npm run es:index` を実行しておく（約 1 分）
+3. このリポジトリで：
 
 ```bash
 composer install                  # 最後に importmap:install も動き、Stimulus を assets/vendor/ に落とす
@@ -36,19 +47,11 @@ php -S 127.0.0.1:3000 -t public   # http://127.0.0.1:3000
 
 ## Elasticsearch 検索
 
-Rails 版・Laravel 版と同じものです。DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/es`）を別に作りました。上のメニューで切り替えられ、それぞれの画面に「同じ条件で〜検索」のリンクがあります。
-
-- **速さ**（`php -S` で画面全体を返すまで、3 回測った値）
-
-| 条件 | DB 検索 | Elasticsearch 検索 |
-|---|---|---|
-| 市区町村「町田」＋町字「木曽」 | 1.74〜1.80 秒 | 0.035〜0.036 秒 |
-| 町字「西」 | 0.72〜0.75 秒 | 0.041〜0.043 秒 |
-| 条件なし | 0.23〜0.24 秒 | 0.033〜0.035 秒 |
+DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/es`）を別に作りました。上のメニューで切り替えられ、それぞれの画面に「同じ条件で〜検索」のリンクがあります。
 
 - **中身は `npm run es:index` を実行した時点の DB のコピー**です。画面に作成日時を出しています。この画面から編集・削除すると DB は変わりますが、Elasticsearch は次に `es:index` を実行するまで古いままです。食い違ったときは、DB 検索の画面と見比べてください
 - **ページ送りは「最初へ・前へ・次へ・最後へ」**で、ページ番号はありません。Elasticsearch は、先頭から 10,000 件より先へページ番号で進めないため、主キーの続きから取る方法（search_after）にしました
-- **文字の扱いは MySQL に合わせています**：MySQL（utf8mb4_unicode_ci）は全角と半角、ひらがなとカタカナ、濁点の有無などを同じ文字として扱います。Elasticsearch でも同じ結果になるよう、入れる側（abr-batch の `src/lib/fold.ts`）と探す側（[src/Support/RsdtFold.php](src/Support/RsdtFold.php)）で同じように文字をそろえています。DB にある値すべて（1,159 種類）で、abr-batch と結果が同じになることを確かめました。直すときは abr-batch・Rails 版・Laravel 版・Symfony 版のすべてを直します
+- **文字の扱いは MySQL に合わせています**：MySQL（utf8mb4_unicode_ci）は全角と半角、ひらがなとカタカナ、濁点の有無などを同じ文字として扱います。Elasticsearch でも同じ結果になるよう、入れる側（abr-batch の `src/lib/fold.ts`）と探す側（[src/Support/RsdtFold.php](src/Support/RsdtFold.php)）で同じように文字をそろえています。DB にある値すべて（1,159 種類）で、abr-batch と結果が同じになることを確かめました。直すときは abr-batch と、ほかの版の同じ処理もすべて直します
 - Elasticsearch には Symfony の HttpClient でつなぎます（[src/Elasticsearch/EsClient.php](src/Elasticsearch/EsClient.php)）。HttpClient は AssetMapper などが使うのでもともと入っていましたが、直接使うので `composer.json` にも書きました（版は入っていた 8.1.11 のまま）。接続先は `.env` の `ES_URL`。接続できないときは、画面にエラーの文を出します
 - 検索結果は `Rsdt::fromColumns()` でエンティティにして、DB 検索と同じ表の部品で出します（DB には保存しません）
 
@@ -67,10 +70,10 @@ Rails 版・Laravel 版と同じものです。DB 検索（`/`）はそのまま
 | `src/Support/RsdtFold.php` | Elasticsearch で探す前に、文字をそろえる（MySQL と同じ結果にするため） |
 | `src/Support/Pager.php`・`src/Twig/AppExtension.php` | ページャーに出すページ番号と、それをテンプレートで使う関数 |
 | `templates/` | Twig：レイアウト・お知らせ・確認モーダル・一覧・一覧の表・編集・検索フォーム・削除ボタン・ページャー・404。`templates/es/` は Elasticsearch 検索の一覧とページ送り |
-| `assets/controllers/` | Stimulus：確認モーダル（`confirm`）・お知らせを消す（`flash`）・件数を変えたら送る（`auto-submit`）。Rails 版と同じもの |
+| `assets/controllers/` | Stimulus：確認モーダル（`confirm`）・お知らせを消す（`flash`）・件数を変えたら送る（`auto-submit`） |
 | `src/Console/DbCommandGuard.php` | DB を作り直すコマンドを止める |
 
-Laravel 版との違い：
+[Laravel 版](https://github.com/yamafifa/abr-web-laravel)との違い：
 
 - **入力チェックに通らないとき、redirect せずに編集画面をそのまま出します**（HTTP 422）。Laravel 版は、編集画面に redirect して、入力値とエラーをセッションで渡します。Symfony Form はこの形がふつうです
 - **フォームの項目名に、フォームの名前が付きます**（`city` ではなく `rsdt[city]`）
@@ -105,5 +108,5 @@ vendor/bin/php-cs-fixer fix --dry-run  # 書き方のチェック（直すとき
 - **PHP CS Fixer は、説明の最後に「.」を足す**：`@Symfony` の決まり（`phpdoc_summary`）が日本語の文にも「.」を付けるので、この決まりだけ外しました
 - **`php -S` だけで JS・CSS も配れた**：開発中の AssetMapper は、ファイルが無い URL を Symfony が受けて返すので、ルーター用のスクリプトは要りませんでした
 - **Twig の `?:` と三項演算子を1つの式にまとめたら、お知らせが出なかった**：`{% if %}` に分けて書き直したら出ました。式がどう解釈されたのかは、調べていません
-- **データの性質**（ほかの版と同じ）：丁目は「一丁目」と「３丁目」の書き方が混ざっていて、「3」で「３丁目」は見つかりますが、「三丁目」は見つかりません。画面の項目名は CSV の列名のままです
+- **データの性質**：丁目は「一丁目」と「３丁目」の書き方が混ざっていて、「3」で「３丁目」は見つかりますが、「三丁目」は見つかりません。画面の項目名は CSV の列名のままです
 - **時刻は日本時間**：`src/Kernel.php` の `boot()` で `date_default_timezone_set('Asia/Tokyo')` を呼んでいます。Symfony にはタイムゾーンの設定が無く、php.ini の `date.timezone`（この PC では UTC）に従うためです。php.ini は PC 全体の設定なので変えていません。DB の日付の列は DATE 型（時刻を持たない）なので、今は時刻で結果が変わる処理はありません。DB（MySQL）の時刻は UTC のままです
