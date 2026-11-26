@@ -1,7 +1,7 @@
 # abr-web-symfony
 
 ABR（アドレス・ベース・レジストリ）の住居表示-住居マスター（`mt_rsdtdsp_rsdt`、東京都 1,752,573 件）を検索して、一覧表示・編集・削除する Web アプリの PHP Symfony 版です。
-[abr-batch](https://github.com/yamafifa/abr-batch) で確かめた「大量のデータを部分一致で探すなら、元の DB ではなく、検索用のデータを作る」の効果を、DB 検索と Elasticsearch 検索の画面で比べられるようにしています。
+[abr-batch](https://github.com/yamafifa/abr-batch) で確かめた「大量のデータを部分一致で探すなら、元の DB ではなく、検索用のデータを作る」という考え方の効果を、DB 検索と Elasticsearch 検索の画面で比べられるようにしています。
 
 - PHP 8.5 ＋ Symfony 8.1.11 ＋ Doctrine ORM 3.7 ＋ Twig ＋ Symfony Form ＋ Tailwind CSS 4 ＋ Stimulus（AssetMapper）＋ PHPUnit 13
 - 構成は「Controller → ユースケース → Repository → Entity」（`src/UseCase/`）
@@ -22,7 +22,7 @@ ABR（アドレス・ベース・レジストリ）の住居表示-住居マス�
 - 本番モードは、`APP_ENV=prod APP_DEBUG=0` で `cache:clear`・`tailwind:build`・`asset-map:compile` をしてから、OPcache（PHP のコードを変換した結果をメモリに取っておく仕組み）を有効にした PHP の簡易サーバーで動かしました（`php -d variables_order=EGPCS -d opcache.enable_cli=1 -S 127.0.0.1:3003 -t public`）。測り終えたら `public/assets` と `var/cache/prod` を消して、開発モードに戻します
 - `-d variables_order=EGPCS` が無いと、PHP の簡易サーバーに環境変数が渡らず、`APP_ENV=prod` を付けても開発モードで動きます
 - 開発モード（`php -S`）では、Elasticsearch 検索が 0.035〜0.042 秒でした。画面の下のツールバー用に、毎回 SQL などを記録する分がかかっていました
-- DB 検索は `city LIKE '%町田%'` のような部分一致です。前に `%` が付く LIKE は MySQL のインデックスでは速くならないので、毎回 175 万行を全部読みます
+- DB 検索は `city LIKE '%町田%'` のような部分一致です。前に `%` が付く LIKE は MySQL のインデックスが効かないので、毎回約 175 万行をすべて読みます
 - Elasticsearch 検索は、abr-batch の `npm run es:index` で作った検索用のインデックスから探します。条件の意味と画面は DB 検索と同じです
 - 詳しくは下の「[Elasticsearch 検索](#elasticsearch-検索)」を参照
 
@@ -50,12 +50,12 @@ php -S 127.0.0.1:3000 -t public   # http://127.0.0.1:3000
 
 ## Elasticsearch 検索
 
-DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/es`）を別に作りました。上のメニューで切り替えられ、それぞれの画面に「同じ条件で〜検索」のリンクがあります。
+DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/es`）を別に作りました。上のメニューで切り替えられます。それぞれの画面には、もう一方で同じ条件を検索するリンク（「同じ条件で DB 検索」「同じ条件で Elasticsearch 検索」）があります。
 
-- **中身は `npm run es:index` を実行した時点の DB のコピー**です。画面に作成日時を出しています。この画面から編集・削除すると DB は変わりますが、Elasticsearch は次に `es:index` を実行するまで古いままです。食い違ったときは、DB 検索の画面と見比べてください
-- **ページ送りは「最初へ・前へ・次へ・最後へ」**で、ページ番号はありません。Elasticsearch は、先頭から 10,000 件より先へページ番号で進めないため、主キーの続きから取る方法（search_after）にしました
+- **中身は `npm run es:index` を実行した時点の DB のコピー**です。画面に作成日時を出しています。アプリで編集・削除すると DB は変わりますが、Elasticsearch の中身は次に `es:index` を実行するまで古いままです。結果が食い違ったときは、DB 検索の画面と見比べてください
+- **ページ送りは「最初へ・前へ・次へ・最後へ」**で、ページ番号はありません。Elasticsearch は、先頭から 10,000 件より先へページ番号で進めないため、前のページの最後の行の主キーを渡して、その続きから取る方法（search_after）にしました
 - **文字の扱いは MySQL に合わせています**：MySQL（utf8mb4_unicode_ci）は全角と半角、ひらがなとカタカナ、濁点の有無などを同じ文字として扱います。Elasticsearch でも同じ結果になるよう、入れる側（abr-batch の `src/lib/fold.ts`）と探す側（[src/Support/RsdtFold.php](src/Support/RsdtFold.php)）で同じように文字をそろえています。DB にある値すべて（1,159 種類）で、abr-batch と結果が同じになることを確かめました。直すときは abr-batch と、ほかの版の同じ処理もすべて直します
-- Elasticsearch には Symfony の HttpClient でつなぎます（[src/Elasticsearch/EsClient.php](src/Elasticsearch/EsClient.php)）。HttpClient は AssetMapper などが使うのでもともと入っていましたが、直接使うので `composer.json` にも書きました（版は入っていた 8.1.11 のまま）。接続先は `.env` の `ES_URL`。接続できないときは、画面にエラーの文を出します
+- Elasticsearch には Symfony の HttpClient でつなぎます（[src/Elasticsearch/EsClient.php](src/Elasticsearch/EsClient.php)）。HttpClient は AssetMapper などが使うのでもともと入っていましたが、直接使うので `composer.json` にも書きました（版は入っていた 8.1.11 のまま）。接続先は `.env` の `ES_URL` です（`http://127.0.0.1:9200` を書いてあります）。接続できないときは、画面にエラーメッセージを出します
 - 検索結果は `Rsdt::fromColumns()` でエンティティにして、DB 検索と同じ表の部品で出します（DB には保存しません）
 
 ## 構成
@@ -110,6 +110,6 @@ vendor/bin/php-cs-fixer fix --dry-run  # 書き方のチェック（直すとき
 - **Tailwind はビルドした時点のテンプレートしか見ない**：テンプレートを書く前にビルドしたら、クラスが CSS に入っていませんでした。テンプレートを変えたら、ビルドし直します（`--watch` を付けると自動）
 - **PHP CS Fixer は、説明の最後に「.」を足す**：`@Symfony` の決まり（`phpdoc_summary`）が日本語の文にも「.」を付けるので、この決まりだけ外しました
 - **`php -S` だけで JS・CSS も配れた**：開発中の AssetMapper は、ファイルが無い URL を Symfony が受けて返すので、ルーター用のスクリプトは要りませんでした
-- **Twig の `?:` と三項演算子を1つの式にまとめたら、お知らせが出なかった**：`{% if %}` に分けて書き直したら出ました。式がどう解釈されたのかは、調べていません
+- **Twig の `?:` と三項演算子を 1 つの式にまとめたら、お知らせが出なかった**：`{% if %}` に分けて書き直したら出ました。式がどう解釈されたのかは、調べていません
 - **データの性質**：丁目は「一丁目」と「３丁目」の書き方が混ざっていて、「3」で「３丁目」は見つかりますが、「三丁目」は見つかりません。画面の項目名は CSV の列名のままです
 - **時刻は日本時間**：`src/Kernel.php` の `boot()` で `date_default_timezone_set('Asia/Tokyo')` を呼んでいます。Symfony にはタイムゾーンの設定が無く、php.ini の `date.timezone`（この PC では UTC）に従うためです。php.ini は PC 全体の設定なので変えていません。DB の日付の列は DATE 型（時刻を持たない）なので、今は時刻で結果が変わる処理はありません。DB（MySQL）の時刻は UTC のままです

@@ -9,7 +9,7 @@ description: abr-web-symfony（住居表示-住居マスターを検索・一覧
 
 - PHP 8.5.13（phpenv の global）＋ Composer 2.11.2 ＋ Symfony 8.1.11 ＋ Doctrine ORM 3.7.6（MySQL）＋ Twig ＋ Symfony Form ＋ Tailwind CSS 4.3.4（symfonycasts/tailwind-bundle）＋ Stimulus 3.2.2（AssetMapper）＋ PHPUnit 13.4.6
 - DB は **abr-batch の MySQL を共用**（ポート 3307、テーブル `mt_rsdtdsp_rsdt`、1,752,573 件）。開発とテストは同じ DB（`abr`）
-- 勉強用に、同じものを TS（abr-web-ts）・Rails（abr-web-rails）・Laravel（abr-web-laravel）でも作った。機能・画面・デザイン・ユースケースの名前（`SearchRsdt`・`GetRsdt`・`UpdateRsdt`・`DeleteRsdt`）をそろえる
+- 勉強用に、同じものを TypeScript（abr-web-ts）・Rails（abr-web-rails）・Laravel（abr-web-laravel）・Spring Boot（abr-web-spring）でも作った。機能・画面・デザイン・ユースケースの名前（`SearchRsdt`・`GetRsdt`・`UpdateRsdt`・`DeleteRsdt`）をそろえる
 - サーバーは `php -S 127.0.0.1:3000 -t public`（ほかの版と同じ 3000 番）。Node.js は使わない
 - 時刻は日本時間（`src/Kernel.php` の `boot()` で `date_default_timezone_set('Asia/Tokyo')`）。php.ini の `date.timezone` は UTC のまま（PC 全体の設定なので変えない）
 
@@ -29,7 +29,8 @@ description: abr-web-symfony（住居表示-住居マスターを検索・一覧
 |---|---|
 | `src/Entity/Rsdt.php` | 列の対応づけ（`#[ORM\Column]`）、複合主キー（`KEY_COLUMNS`・`keyFromParam`・`routeId`）、17 列の決まり（`ATTRIBUTE_RULES`）、住所の表示（`address()`）、フォームに出す値（`formValues()`）、書き換え（`update()`） |
 | `src/Repository/RsdtRepository.php` | SQL（QueryBuilder）を組み立てる所。検索・件数・1 件（ロック付き）・削除 |
-| `src/Search/` | 検索条件と、一覧の URL ⇔ 状態の変換（readonly class）。Laravel 版と同じもの |
+| `src/Search/` | 検索条件と、一覧の URL ⇔ 状態の変換（readonly class）。Laravel 版と同じもの。Elasticsearch 検索の URL ⇔ 状態の変換（`RsdtEsListQuery`）もここ |
+| `src/Elasticsearch/`・`src/Support/RsdtFold.php` | Elasticsearch の REST API の呼び出し（Symfony の HttpClient）と、文字をそろえる処理（abr-batch の `fold.ts` と同じ） |
 | `src/Form/RsdtType.php` | 編集フォームと入力チェック（`ATTRIBUTE_RULES` から作る）とエラーの文 |
 | `src/UseCase/` | ユースケース（`call` を持つクラス）。Repository と EntityManager を引数で受け取る（autowiring） |
 | `src/Controller/RsdtController.php` | ルート（`#[Route]`）、パラメーターを読む → ユースケースを呼ぶ → 表示・redirect だけ |
@@ -44,16 +45,17 @@ description: abr-web-symfony（住居表示-住居マスターを検索・一覧
 
 1. `src/Search/RsdtSearchCriteria.php` の項目
 2. `src/Repository/RsdtRepository.php` の `searchQuery`（部分一致は `self::escapeLike` でエスケープ）
-3. `src/Search/RsdtListQuery.php` の `PARAM_NAMES`（URL の名前）と `MAX_LENGTH`
-4. `templates/rsdt/_search_form.html.twig` の `fields`
-5. テスト（`tests/Unit/RsdtListQueryTest.php`・`tests/Integration/SearchRsdtTest.php`・`tests/Controller/RsdtControllerTest.php`）と README
+3. `src/UseCase/SearchRsdtEs.php` の `WILDCARD_FIELDS`（部分一致）か `EXACT_FIELDS`（完全一致）
+4. `src/Search/RsdtListQuery.php` の `PARAM_NAMES`（URL の名前）と `MAX_LENGTH`
+5. `templates/rsdt/_search_form.html.twig` の `fields`
+6. テスト（`tests/Unit/RsdtListQueryTest.php`・`tests/Integration/SearchRsdtTest.php`・`tests/Controller/RsdtControllerTest.php`）と README
 
 部分一致か完全一致かは、値を見てから決める（`blk_num`・`rsdt_num` は全件が半角数字なので完全一致）。
 
 ## テストと確認
 
 ```bash
-php bin/phpunit                        # 78 件、約 20 秒
+php bin/phpunit                        # 97 件、約 30 秒
 vendor/bin/phpstan analyse             # レベル 8、エラー 0 件を保つ
 vendor/bin/php-cs-fixer fix --dry-run  # 指摘 0 件を保つ。直すときは --dry-run を外す
 php bin/console lint:twig templates    # Twig の文法
@@ -140,5 +142,5 @@ P=$(ss -ltnp | grep ':3000 ' | grep -o 'pid=[0-9]*' | cut -d= -f2); [ -n "$P" ] 
 - README は入口（できること・動かし方・構成・テスト・作ってみて分かったこと）。起動と停止は `docs/start-stop.md`
 - 仕様を変えたら、README の「できること」「作ってみて分かったこと」も直す。ほかの版とそろえる機能なら、違いも書く
 - コミットと push は、ユーザーの了解を取ってから。メッセージは日本語で、最後に `Co-Authored-By` の行を付ける
-- GitHub は非公開リポジトリにする（ほかの版と同じ）
+- GitHub は**公開**リポジトリ（ほかの版も公開）
 - `vendor/`・`var/`・`assets/vendor/`・`public/assets/`・`.env.local` は Git に入れない（`.gitignore` 済み）。コミットの前に、個人情報（本名・メールアドレスなど）が入っていないか確かめる
