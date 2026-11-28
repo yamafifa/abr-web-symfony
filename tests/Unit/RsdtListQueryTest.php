@@ -56,6 +56,25 @@ final class RsdtListQueryTest extends TestCase
         self::assertSame(20, strlen($q->criteria->blkNum));
     }
 
+    public function test半角カナは全角カナにする(): void
+    {
+        // 濁点・半濁点は 1 文字にまとめる
+        $q = RsdtListQuery::fromParams(['city' => 'ｶﾞｰﾃﾞﾝ', 'town' => 'ﾊﾟｰｸ', 'chome' => 'ｳﾞ']);
+
+        self::assertSame(['ガーデン', 'パーク', 'ヴ'], [$q->criteria->city, $q->criteria->town, $q->criteria->chome]);
+    }
+
+    public function test半角カナのほかは変えない(): void
+    {
+        // 全角英数字・丸数字・互換漢字
+        self::assertSame("３Ａ①\u{FA10}パ", RsdtListQuery::fromParams(['town' => "３Ａ①\u{FA10}ﾊﾟ"])->criteria->town);
+    }
+
+    public function test半角カナを全角にしてから長さで切る(): void
+    {
+        self::assertSame(str_repeat('パ', 20), RsdtListQuery::fromParams(['chome' => str_repeat('ﾊﾟ', 20)])->criteria->chome);
+    }
+
     public function testURLのクエリに戻すとき空の条件と既定値は省く(): void
     {
         self::assertSame([], RsdtListQuery::fromParams([])->toParams());

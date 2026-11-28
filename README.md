@@ -55,6 +55,7 @@ DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/e
 - **中身は `npm run es:index` を実行した時点の DB のコピー**です。画面に作成日時を出しています。アプリで編集・削除すると DB は変わりますが、Elasticsearch の中身は次に `es:index` を実行するまで古いままです。結果が食い違ったときは、DB 検索の画面と見比べてください
 - **ページ送りは「最初へ・前へ・次へ・最後へ」**で、ページ番号はありません。Elasticsearch は、先頭から 10,000 件より先へページ番号で進めないため、前のページの最後の行の主キーを渡して、その続きから取る方法（search_after）にしました
 - **文字の扱いは MySQL に合わせています**：MySQL（utf8mb4_unicode_ci）は全角と半角、ひらがなとカタカナ、濁点の有無などを同じ文字として扱います。Elasticsearch でも同じ結果になるよう、入れる側（abr-batch の `src/lib/fold.ts`）と探す側（[src/Support/RsdtFold.php](src/Support/RsdtFold.php)）で同じように文字をそろえています。DB にある値すべて（1,159 種類）で、abr-batch と結果が同じになることを確かめました。直すときは abr-batch と、ほかの版の同じ処理もすべて直します
+- **検索条件の半角カナは、受け取るときに全角カナにします**（「ﾊﾟ」→「パ」）。DB 検索と Elasticsearch 検索の両方にかかります。MySQL は半角の「ﾊﾟ」を「ﾊ」と「ﾟ」の 2 文字として探すので、そのままでは Elasticsearch 検索と件数が合わないためです。変えるのは半角カナだけで、互換漢字や丸数字は変えません（[src/Search/RsdtListQuery.php](src/Search/RsdtListQuery.php)）
 - Elasticsearch には Symfony の HttpClient でつなぎます（[src/Elasticsearch/EsClient.php](src/Elasticsearch/EsClient.php)）。HttpClient は AssetMapper などが使うのでもともと入っていましたが、直接使うので `composer.json` にも書きました（版は入っていた 8.1.11 のまま）。接続先は `.env` の `ES_URL` です（`http://127.0.0.1:9200` を書いてあります）。接続できないときは、画面にエラーメッセージを出します
 - 検索結果は `Rsdt::fromColumns()` でエンティティにして、DB 検索と同じ表の部品で出します（DB には保存しません）
 
@@ -88,7 +89,7 @@ DB 検索（`/`）はそのまま残して、Elasticsearch で探す一覧（`/e
 ## テスト
 
 ```bash
-php bin/phpunit                        # 97 件、約 30 秒
+php bin/phpunit                        # 100 件、約 30 秒
 vendor/bin/phpstan analyse             # 型の検査（レベル 8）
 vendor/bin/php-cs-fixer fix --dry-run  # 書き方のチェック（直すときは --dry-run を外す）
 ```

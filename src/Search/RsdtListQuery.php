@@ -25,7 +25,7 @@ final readonly class RsdtListQuery
     }
 
     /**
-     * URL のクエリを一覧の状態にする。おかしな値は既定値にする
+     * URL のクエリを一覧の状態にする。おかしな値は既定値にする。半角カナは全角カナにする
      *
      * @param array<string, mixed> $params
      */
@@ -38,7 +38,7 @@ final readonly class RsdtListQuery
         };
         $values = [];
         foreach (self::PARAM_NAMES as $prop => $name) {
-            $values[$prop] = mb_substr($first($params[$name] ?? ''), 0, self::MAX_LENGTH[$prop]);
+            $values[$prop] = mb_substr(self::zenkakuKana($first($params[$name] ?? '')), 0, self::MAX_LENGTH[$prop]);
         }
         $per = filter_var($first($params['per'] ?? ''), FILTER_VALIDATE_INT);
         $page = filter_var($first($params['page'] ?? ''), FILTER_VALIDATE_INT);
@@ -47,6 +47,22 @@ final readonly class RsdtListQuery
             criteria: new RsdtSearchCriteria(...$values),
             perPage: in_array($per, self::PER_PAGE_OPTIONS, true) ? $per : self::DEFAULT_PER_PAGE,
             page: is_int($page) && $page > 0 ? $page : 1,
+        );
+    }
+
+    /**
+     * 半角カナ（U+FF61〜U+FF9F）だけを全角カナにする（「ﾊﾟ」→「パ」）。ほかの文字は変えない
+     *
+     * MySQL は「ﾊﾟ」を「ﾊ」と「ﾟ」の 2 文字として探すので、Elasticsearch 検索（RsdtFold で 1 文字にする）と件数が合わなくなるため。
+     * NFKC を全体にかけると、互換漢字（例：U+FA10 の「塚」）や「①」まで変わるので、半角カナの並びにだけかける
+     * ほかの版（abr-web-rails・abr-web-laravel・abr-web-spring・abr-web-ts）と abr-batch の es:verify にも同じ処理がある。直すときはすべてを直す
+     */
+    public static function zenkakuKana(string $s): string
+    {
+        return (string) preg_replace_callback(
+            '/[\x{FF61}-\x{FF9F}]+/u',
+            fn (array $m) => (string) \Normalizer::normalize($m[0], \Normalizer::FORM_KC),
+            $s,
         );
     }
 
