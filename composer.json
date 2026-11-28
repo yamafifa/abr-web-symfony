@@ -2,7 +2,7 @@
     "name": "abr/abr-web-symfony",
     "description": "住居表示-住居マスターを検索・一覧・編集・削除する Symfony のアプリ（勉強用）",
     "type": "project",
-    "license": "proprietary",
+    "license": "MIT",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
